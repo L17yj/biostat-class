@@ -1,0 +1,19 @@
+# Temporary Office lock files
+~$*.doc*
+~$*.xls*
+~$*.ppt*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.venv
+venv/
+ENV/
+
+# OS generated files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
