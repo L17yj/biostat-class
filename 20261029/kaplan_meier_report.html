@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kaplan-Meier 存活曲線分析報告 - 新藥試驗數據</title>
+  <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #1e40af;
+      --primary-light: #3b82f6;
+      --accent: #d97706;
+      --placebo: #0284c7;
+      --newdrug: #dc2626;
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+      --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+      --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', 'Noto Sans TC', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      padding: 24px;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    header {
+      background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+      color: white;
+      padding: 36px 32px;
+      border-radius: 16px;
+      box-shadow: var(--shadow-lg);
+      margin-bottom: 28px;
+    }
+
+    .badge {
+      display: inline-block;
+      background: rgba(255, 255, 255, 0.2);
+      backdrop-filter: blur(4px);
+      padding: 4px 12px;
+      border-radius: 9999px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      font-size: 2.1rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+      letter-spacing: -0.02em;
+    }
+
+    .subtitle {
+      font-size: 1.05rem;
+      opacity: 0.9;
+      max-width: 800px;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 24px;
+      margin-bottom: 24px;
+    }
+
+    @media (max-width: 900px) {
+      .grid-2 {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .card {
+      background: var(--surface);
+      border-radius: 14px;
+      padding: 24px;
+      box-shadow: var(--shadow-md);
+      border: 1px solid var(--border);
+    }
+
+    .card-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card-title::before {
+      content: "";
+      display: inline-block;
+      width: 4px;
+      height: 18px;
+      background: var(--primary-light);
+      border-radius: 2px;
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: white;
+      color: var(--text);
+      transition: all 0.2s;
+    }
+
+    .btn:hover {
+      background: #f1f5f9;
+      border-color: #cbd5e1;
+    }
+
+    .btn.active {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+    }
+
+    .stat-pill {
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+      margin-bottom: 12px;
+    }
+
+    .stat-pill .label {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .stat-pill .val {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .stat-pill .sub {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .highlight-pill {
+      border-left: 4px solid var(--primary);
+    }
+
+    .placebo-pill {
+      border-left: 4px solid var(--placebo);
+    }
+
+    .newdrug-pill {
+      border-left: 4px solid var(--newdrug);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+      margin-top: 10px;
+    }
+
+    th, td {
+      padding: 10px 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+
+    th {
+      background: #f8fafc;
+      color: var(--text-muted);
+      font-weight: 600;
+      font-size: 0.82rem;
+      text-transform: uppercase;
+    }
+
+    tr:hover td {
+      background: #f1f5f9;
+    }
+
+    .tag-censor {
+      background: #e0f2fe;
+      color: #0369a1;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.78rem;
+      font-weight: 600;
+    }
+
+    .tag-event {
+      background: #fee2e2;
+      color: #b91c1c;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.78rem;
+      font-weight: 600;
+    }
+
+    .spss-code {
+      background: #1e293b;
+      color: #f8fafc;
+      padding: 16px;
+      border-radius: 8px;
+      font-family: Consolas, Monaco, monospace;
+      font-size: 0.88rem;
+      overflow-x: auto;
+      line-height: 1.5;
+      margin-top: 10px;
+    }
+
+    .step-item {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .step-num {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: var(--primary);
+      color: white;
+      font-size: 0.82rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .alert {
+      padding: 16px;
+      border-radius: 10px;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      color: #1e3a8a;
+      font-size: 0.92rem;
+      margin-top: 16px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <div class="badge">生物統計實習 • 存活分析 (Survival Analysis)</div>
+    <h1>Kaplan-Meier 存活曲線分析報告</h1>
+    <div class="subtitle">評估新藥組 (New Drug) 與對照組 (Placebo) 之存活率、中位存活時間與 Log-Rank 檢定比較</div>
+  </header>
+
+  <div class="grid-2">
+    <!-- Interactive Plot -->
+    <div class="card">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap;">
+        <h2 class="card-title" style="margin-bottom: 0;">存活曲線圖 (Survival Curve)</h2>
+        <div class="btn-group" style="margin-bottom: 0;">
+          <button class="btn active" id="btn-km" onclick="switchPlot('km')">Kaplan-Meier 存活率</button>
+          <button class="btn" id="btn-hazard" onclick="switchPlot('hazard')">累積危險 (Cumulative Hazard)</button>
+        </div>
+      </div>
+      <div id="kmPlot" style="width: 100%; height: 480px;"></div>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px; font-size: 0.85rem; color: var(--text-muted);">
+        <span>圖例標記：十字符號 (+) 表示設限資料 (Censored data)</span>
+        <a href="kaplan_meier_curve.png" download="Kaplan-Meier_Curve.png" class="btn" style="padding: 4px 10px; font-size: 0.8rem; text-decoration: none;">下載 300 DPI 圖片</a>
+      </div>
+    </div>
+
+    <!-- Quick Statistics Summary -->
+    <div class="card">
+      <h2 class="card-title">統計分析結果摘要</h2>
+
+      <div class="stat-pill placebo-pill">
+        <div class="label">對照組 (Placebo, n=6)</div>
+        <div class="val">中位數 6.50 個月</div>
+        <div class="sub">95% CI: 3.56 ~ 9.44 個月 | 平均: 6.23 個月</div>
+        <div class="sub">事件發生: 3 例 (50.0%) | 設限: 3 例 (50.0%)</div>
+      </div>
+
+      <div class="stat-pill newdrug-pill">
+        <div class="label">新藥組 (New Drug, n=6)</div>
+        <div class="val">中位數 5.00 個月</div>
+        <div class="sub">95% CI: 4.04 ~ 5.96 個月 | 平均: 5.53 個月</div>
+        <div class="sub">事件發生: 6 例 (100.0%) | 設限: 0 例 (0.0%)</div>
+      </div>
+
+      <div class="stat-pill highlight-pill">
+        <div class="label">Log-Rank (Mantel-Cox) 差異檢定</div>
+        <div class="val">p = 0.129 (χ² = 2.304, df = 1)</div>
+        <div class="sub">Breslow: p = 0.249 | Tarone-Ware: p = 0.183</div>
+        <div class="sub" style="color: #b45309; font-weight: 600; margin-top: 4px;">結論：兩組存活曲線無統計學顯著差異 (p > 0.05)</div>
+      </div>
+
+      <div class="alert">
+        <strong>臨床與統計結論解析：</strong><br>
+        1. 雖然新藥組中位存活期 (5.0月) 數值上小於對照組 (6.5月)，且所有 6 位受試者均發生事件；<br>
+        2. 但 Log-Rank 檢定 p 值為 0.129 (> 0.05)，統計上<strong>無法拒絕虛無假說</strong>；<br>
+        3. 受限於樣本數較小 (每組各 6 例)，檢定力 (Power) 較低，需擴大樣本進一步驗證。
+      </div>
+    </div>
+  </div>
+
+  <!-- Life Table -->
+  <div class="card" style="margin-bottom: 24px;">
+    <h2 class="card-title">Kaplan-Meier 存活生命表 (Life Table)</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>組別</th>
+          <th>追蹤月數 (Time)</th>
+          <th>風險人數 (At Risk)</th>
+          <th>事件數 (Events)</th>
+          <th>設限數 (Censored)</th>
+          <th>區間存活率 (p)</th>
+          <th>累積存活率 (S(t))</th>
+          <th>標準誤 (SE)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td rowspan="6" style="vertical-align: middle; font-weight: 700; color: var(--placebo);">對照組 (Placebo)</td>
+          <td>4.50</td><td>6</td><td>1</td><td>0</td><td>5/6 = 0.833</td><td><strong>0.833 (83.3%)</strong></td><td>0.152</td>
+        </tr>
+        <tr><td>5.00</td><td>5</td><td>1</td><td>0</td><td>4/5 = 0.800</td><td><strong>0.667 (66.7%)</strong></td><td>0.192</td></tr>
+        <tr><td>6.00</td><td>4</td><td>0</td><td>1 <span class="tag-censor">設限</span></td><td>-</td><td><strong>0.667 (66.7%)</strong></td><td>-</td></tr>
+        <tr><td>6.50</td><td>3</td><td>1</td><td>0</td><td>2/3 = 0.667</td><td><strong>0.444 (44.4%)</strong></td><td>0.222</td></tr>
+        <tr><td>7.00</td><td>2</td><td>0</td><td>1 <span class="tag-censor">設限</span></td><td>-</td><td><strong>0.444 (44.4%)</strong></td><td>-</td></tr>
+        <tr><td>7.20</td><td>1</td><td>0</td><td>1 <span class="tag-censor">設限</span></td><td>-</td><td><strong>0.444 (44.4%)</strong></td><td>-</td></tr>
+
+        <tr style="border-top: 2px solid var(--border);">
+          <td rowspan="5" style="vertical-align: middle; font-weight: 700; color: var(--newdrug);">新藥組 (New Drug)</td>
+          <td>4.30</td><td>6</td><td>1</td><td>0</td><td>5/6 = 0.833</td><td><strong>0.833 (83.3%)</strong></td><td>0.152</td>
+        </tr>
+        <tr><td>5.00</td><td>5</td><td>2</td><td>0</td><td>3/5 = 0.600</td><td><strong>0.500 (50.0%)</strong></td><td>0.204</td></tr>
+        <tr><td>5.50</td><td>3</td><td>1</td><td>0</td><td>2/3 = 0.667</td><td><strong>0.333 (33.3%)</strong></td><td>0.192</td></tr>
+        <tr><td>6.40</td><td>2</td><td>1</td><td>0</td><td>1/2 = 0.500</td><td><strong>0.167 (16.7%)</strong></td><td>0.152</td></tr>
+        <tr><td>7.00</td><td>1</td><td>1</td><td>0</td><td>0/1 = 0.000</td><td><strong>0.000 (0.0%)</strong></td><td>0.000</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- SPSS Operation Guide -->
+  <div class="card">
+    <h2 class="card-title">SPSS 軟體操作完整指引 (上課/實習作業專用)</h2>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+      <div>
+        <h3 style="font-size: 1rem; margin-bottom: 10px; color: var(--primary);">圖形介面步驟 (GUI Steps)</h3>
+        <div class="step-item">
+          <div class="step-num">1</div>
+          <div>點選上方選單 <strong>分析 (Analyze)</strong> ➔ <strong>存活分析 (Survival)</strong> ➔ <strong>Kaplan-Meier</strong>。</div>
+        </div>
+        <div class="step-item">
+          <div class="step-num">2</div>
+          <div>將 <code>Follow-up Months</code> 移入 <strong>時間 (Time)</strong> 欄位。</div>
+        </div>
+        <div class="step-item">
+          <div class="step-num">3</div>
+          <div>將 <code>Status 1=event 0=censor</code> 移入 <strong>狀態 (Status)</strong> 欄位，點擊 <strong>定義事件 (Define Event)</strong>，單一數值輸入 <code>1</code>。</div>
+        </div>
+        <div class="step-item">
+          <div class="step-num">4</div>
+          <div>將 <code>Group</code> 移入 <strong>因子 (Factor)</strong> 欄位。</div>
+        </div>
+        <div class="step-item">
+          <div class="step-num">5</div>
+          <div>點擊 <strong>比較因子 (Compare Factor)</strong> 勾選 <code>Log rank</code>、<code>Breslow</code>、<code>Tarone-Ware</code>。</div>
+        </div>
+        <div class="step-item">
+          <div class="step-num">6</div>
+          <div>點擊 <strong>圖形 (Options/Plots)</strong> 勾選 <code>存活函數 (Survival)</code> 及 <code>危險函數 (Hazard)</code>，最後點選 <strong>確定 (OK)</strong>。</div>
+        </div>
+      </div>
+      <div>
+        <h3 style="font-size: 1rem; margin-bottom: 10px; color: var(--primary);">SPSS 語法檔 (Syntax)</h3>
+        <pre class="spss-code">KM FollowupMonths BY Group
+  /STATUS=Status1event0censor(1)
+  /PRINT TABLE MEAN
+  /PLOT SURVIVAL HAZARD
+  /TEST LOGRANK BRESLOW TARONE
+  /COMPARE OVERALL POOLED.</pre>
+        <div style="margin-top: 14px; font-size: 0.88rem; color: var(--text-muted);">
+          與您資料夾內的 <code>輸出1.spv</code> 及 <code>20261029.doc</code> 產出完全吻合。
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Plot data
+  // Group 1: Placebo
+  const t_placebo = [0, 4.5, 4.5, 5.0, 5.0, 6.0, 6.5, 6.5, 7.0, 7.2];
+  const s_placebo = [1.0, 1.0, 0.8333, 0.8333, 0.6667, 0.6667, 0.6667, 0.4444, 0.4444, 0.4444];
+  const censor_x_p = [6.0, 7.0, 7.2];
+  const censor_y_p = [0.6667, 0.4444, 0.4444];
+
+  // Group 2: New Drug
+  const t_newdrug = [0, 4.3, 4.3, 5.0, 5.0, 5.5, 5.5, 6.4, 6.4, 7.0, 7.0];
+  const s_newdrug = [1.0, 1.0, 0.8333, 0.8333, 0.5000, 0.5000, 0.3333, 0.3333, 0.1667, 0.1667, 0.0];
+
+  // Cumulative hazard
+  const h_placebo = s_placebo.map(s => -Math.log(Math.max(s, 0.001)));
+  const h_newdrug = s_newdrug.map(s => -Math.log(Math.max(s, 0.001)));
+
+  let currentType = 'km';
+
+  function renderPlot() {
+    let traces = [];
+
+    if (currentType === 'km') {
+      traces.push({
+        x: t_placebo,
+        y: s_placebo,
+        mode: 'lines',
+        name: '對照組 (Placebo)',
+        line: { color: '#0284c7', width: 3 }
+      });
+      traces.push({
+        x: censor_x_p,
+        y: censor_y_p,
+        mode: 'markers',
+        name: '對照組設限 (Censored)',
+        marker: { symbol: 'cross', size: 12, color: '#0284c7', line: { width: 2 } }
+      });
+      traces.push({
+        x: t_newdrug,
+        y: s_newdrug,
+        mode: 'lines',
+        name: '新藥組 (New Drug)',
+        line: { color: '#dc2626', width: 3 }
+      });
+
+      const layout = {
+        title: { text: 'Kaplan-Meier 累積存活率 (Cumulative Survival)', font: { size: 16 } },
+        xaxis: { title: '追蹤時間 (Follow-up Months)', range: [0, 8.5], zeroline: false },
+        yaxis: { title: '累積存活率 (Survival Probability)', range: [-0.05, 1.05], zeroline: false },
+        shapes: [{
+          type: 'line',
+          x0: 0, x1: 8.5,
+          y0: 0.5, y1: 0.5,
+          line: { color: '#94a3b8', width: 1.5, dash: 'dot' }
+        }],
+        annotations: [{
+          x: 0.5, y: 0.52,
+          text: '50% 基準線 (中位存活期)',
+          showarrow: false,
+          font: { size: 11, color: '#64748b' }
+        }],
+        margin: { l: 60, r: 30, t: 50, b: 50 },
+        legend: { x: 0.72, y: 0.98, bgcolor: 'rgba(255,255,255,0.9)', bordercolor: '#e2e8f0', borderwidth: 1 }
+      };
+
+      Plotly.newPlot('kmPlot', traces, layout, { responsive: true });
+    } else {
+      traces.push({
+        x: t_placebo,
+        y: h_placebo,
+        mode: 'lines',
+        name: '對照組 (Placebo)',
+        line: { color: '#0284c7', width: 3 }
+      });
+      traces.push({
+        x: t_newdrug,
+        y: h_newdrug,
+        mode: 'lines',
+        name: '新藥組 (New Drug)',
+        line: { color: '#dc2626', width: 3 }
+      });
+
+      const layout = {
+        title: { text: '累積危險函數 (Cumulative Hazard Function)', font: { size: 16 } },
+        xaxis: { title: '追蹤時間 (Follow-up Months)', range: [0, 8.5], zeroline: false },
+        yaxis: { title: '累積危險 (Cumulative Hazard)', range: [0, 2.5], zeroline: false },
+        margin: { l: 60, r: 30, t: 50, b: 50 },
+        legend: { x: 0.05, y: 0.95, bgcolor: 'rgba(255,255,255,0.9)', bordercolor: '#e2e8f0', borderwidth: 1 }
+      };
+
+      Plotly.newPlot('kmPlot', traces, layout, { responsive: true });
+    }
+  }
+
+  function switchPlot(type) {
+    currentType = type;
+    document.getElementById('btn-km').classList.toggle('active', type === 'km');
+    document.getElementById('btn-hazard').classList.toggle('active', type === 'hazard');
+    renderPlot();
+  }
+
+  renderPlot();
+</script>
+
+</body>
+</html>
